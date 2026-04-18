@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="bg_dark">#0D1117</color>
+    <color name="ring_light_blue">#A3C7FF</color>
+    <color name="ring_dark">#2D333B</color>
+    <color name="icon_gold">#E2D47E</color>
+    <color name="badge_bg">#0D1117</color>
+
+</resources>

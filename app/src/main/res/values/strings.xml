@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SecurityHygieneSensor</string>
+    <string name="sensor_de_higiene">SENSOR DE HIGIENE</string>
+    <string name="shield_heart_desc">Icono de escudo con corazón</string>
+</resources>
