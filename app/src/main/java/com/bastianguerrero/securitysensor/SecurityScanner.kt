@@ -6,6 +6,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
 
+
 //guarda el estado, el mensaje y los puntos
 enum class BiometricState(val points: Int, val message: String) {
     READY(10, "Biometría fuerte lista (huella/face)"),
@@ -16,6 +17,10 @@ enum class BiometricState(val points: Int, val message: String) {
 }
 class SecurityScanner(private val context: Context) {
 
+    companion object {
+        const val MAX_SCORE = 80 // 35 (PIN) + 10 (Bio) + 25 (Parche) + 10 (Apps)
+    }
+
     // 1. Captura la presencia de bloqueo de pantalla (PIN/Patrón/Contraseña)
     fun isDeviceSecured(): Boolean {
         val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
@@ -23,7 +28,7 @@ class SecurityScanner(private val context: Context) {
     }
 
     // 2. Estado de Biometría (¿Está configurada y lista para usarse?)
-    // 2. Tu función ahora devuelve esta clase en lugar de un String suelto
+    // devuelve una clase en vez de un string
     fun getBiometricStatus(): BiometricState {
         val biometricManager = BiometricManager.from(context)
         return when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {

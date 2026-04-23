@@ -7,5 +7,10 @@
     <color name="ring_dark">#2D333B</color>
     <color name="icon_gold">#E2D47E</color>
     <color name="badge_bg">#0D1117</color>
-
+    <color name="ring_green">#3FB950</color>
+    <color name="ring_amber">#D29922</color>
+    <color name="ring_red">#F85149</color>
+    <color name="card_bg">#161B22</color>
+    <color name="card_border">#2D333B</color>
+    <color name="text_muted">#8B949E</color>
 </resources>
