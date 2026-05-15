@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="32dp">
+
+        <!-- Espacio superior -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="60dp"/>
+
+        <!-- Ícono escudo -->
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_shield_heart"
+            android:contentDescription="@string/shield_heart_desc"/>
+
+        <!-- Título principal -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Security Sensor"
+            android:textColor="#A3C7FF"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <!-- Subtítulo -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LifeSync-Games"
+            android:textColor="#4D5566"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="48dp"/>
+
+        <!-- Label usuario -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="USUARIO"
+            android:textColor="#4D5566"
+            android:textSize="11sp"
+            android:letterSpacing="0.15"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- Campo usuario -->
+        <EditText
+            android:id="@+id/etUsername"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/input_background"
+            android:hint="correo@usach.cl"
+            android:textColorHint="#4D5566"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:paddingHorizontal="16dp"
+            android:inputType="textEmailAddress"
+            android:imeOptions="actionNext"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Label contraseña -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="CONTRASEÑA"
+            android:textColor="#4D5566"
+            android:textSize="11sp"
+            android:letterSpacing="0.15"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- Campo contraseña -->
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/input_background"
+            android:hint="••••••••"
+            android:textColorHint="#4D5566"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:paddingHorizontal="16dp"
+            android:inputType="textPassword"
+            android:imeOptions="actionDone"
+            android:layout_marginBottom="32dp"/>
+
+        <!-- Botón login -->
+        <Button
+            android:id="@+id/btnLogin"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="INGRESAR"
+            android:textColor="#0D1117"
+            android:textSize="13sp"
+            android:letterSpacing="0.1"
+            android:textStyle="bold"
+            android:backgroundTint="#A3C7FF"/>
+
+        <!-- Mensaje de error -->
+        <TextView
+            android:id="@+id/tvLoginError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#F85149"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"/>
+
+        <!-- Loading -->
+        <ProgressBar
+            android:id="@+id/pbLogin"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"/>
+
+        <!-- Espacio inferior -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="40dp"/>
+
+    </LinearLayout>
+</ScrollView>

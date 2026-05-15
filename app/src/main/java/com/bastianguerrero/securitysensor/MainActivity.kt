@@ -14,7 +14,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import android.widget.ImageView
-
+// Agrega este import arriba
+import com.bastianguerrero.securitysensor.ui.LsgViewModel
+import androidx.activity.viewModels
+import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,6 +26,9 @@ class MainActivity : AppCompatActivity() {
     private val COLOR_AMBER = Color.parseColor("#D29922")
     private val COLOR_RED   = Color.parseColor("#F85149")
     private val COLOR_MUTED = Color.parseColor("#2D333B")
+
+    // Agrega esta propiedad en la clase
+    private val lsgViewModel: LsgViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +40,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnScan).setOnClickListener { runScan() }
+
+        // Observa si el envío del puntaje a LSG fue exitoso o no
+        lsgViewModel.ingestResult.observe(this) { success ->
+            when (success) {
+                true  -> Toast.makeText(this, "✓ Puntaje enviado a LSG", Toast.LENGTH_SHORT).show()
+                false -> Toast.makeText(this, "✗ Error al enviar puntaje", Toast.LENGTH_SHORT).show()
+                null  -> { }
+            }
+        }
     }
 
     private fun runScan() {
