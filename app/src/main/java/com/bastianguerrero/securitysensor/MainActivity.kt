@@ -41,6 +41,13 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnScan).setOnClickListener { runScan() }
 
+        // Observa el nombre de usuario
+        lsgViewModel.userName.observe(this) { name ->
+            if (name.isNotEmpty()) {
+                findViewById<TextView>(R.id.tvUserWelcome).text = "Hola, $name"
+            }
+        }
+
         // Observa si el envío del puntaje a LSG fue exitoso o no
         lsgViewModel.ingestResult.observe(this) { success ->
             when (success) {
@@ -117,6 +124,9 @@ class MainActivity : AppCompatActivity() {
         setCard(R.id.dotApps, R.id.tvAppsVal, R.id.tvAppsPts,
             if (!appsRisk) "Bloqueadas" else "Habilitadas — riesgo",
             appsPts, if (!appsRisk) COLOR_GREEN else COLOR_RED)
+
+        // Enviar resultado a LSG de forma automática tras el escaneo
+        //lsgViewModel.sendScanResult(total)
 
         btn.isEnabled = true
         btn.text = "ESCANEAR DE NUEVO"

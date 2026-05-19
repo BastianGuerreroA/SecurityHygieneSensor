@@ -6,26 +6,37 @@ import com.bastianguerrero.securitysensor.data.network.RetrofitInstance
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
-class LsgRepository {
+/**
+ * Repositorio Singleton para mantener la sesión y los datos del usuario
+ * en toda la aplicación.
+ */
+object LsgRepository {
 
-    // ojo
-    private val PLAYER_ID                  = 0
-    private val SENSOR_ENDPOINT_ID         = 0
-    private val PLAYERS_SENSOR_ENDPOINT_ID = 0
+    // Datos dinámicos del usuario obtenidos vía /whoami
+    private var playerId: Int = 0
+    private var userName: String = ""
+
+    // ⚠️ Reemplaza con tus IDs reales de la plataforma LSG
+    private val SENSOR_ENDPOINT_ID         = 3
+    private val PLAYERS_SENSOR_ENDPOINT_ID = 8
 
     // Token guardado en memoria tras el login exitoso
     private var token: String? = null
 
-    // ─── FUNCIÓN 1: Login → guarda el token para usarlo después ─────────────
+    fun getPlayerId() = playerId
+    fun getUserName() = userName
+
+    // ─── FUNCIÓN 1: Login → guarda el token y obtiene info del usuario ──────
     suspend fun login(username: String, password: String): Boolean {
         return try {
             val response = RetrofitInstance.authApi.login(username, password)
 
             if (response.isSuccessful) {
-                // Guarda el token en memoria
                 token = response.body()?.access_token
                 Log.d("LSG", "Login exitoso. Token guardado ✓")
-                true
+                
+                // Obtener información del usuario inmediatamente
+                fetchUserInfo()
             } else {
                 Log.e("LSG", "Login fallido: ${response.code()}")
                 false
@@ -36,21 +47,38 @@ class LsgRepository {
         }
     }
 
+    private suspend fun fetchUserInfo(): Boolean {
+        val currentToken = token ?: return false
+        return try {
+            val response = RetrofitInstance.authApi.whoami("Bearer $currentToken")
+            if (response.isSuccessful) {
+                val data = response.body()
+                playerId = data?.id_players ?: 0
+                userName = data?.name ?: ""
+                Log.d("LSG", "Usuario identificado: $userName (ID: $playerId)")
+                true
+            } else {
+                Log.e("LSG", "Error obteniendo whoami: ${response.code()}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("LSG", "Error de red en whoami: ${e.message}")
+            false
+        }
+    }
+
     // ─── FUNCIÓN 2: Envía el puntaje del escaneo al webhook de LSG ──────────
     suspend fun ingestSensorData(score: Int): Boolean {
-        // Verifica que haya token disponible antes de enviar
         if (token == null) {
             Log.e("LSG", "No hay token. El usuario debe loguearse primero.")
             return false
         }
 
         return try {
-            // Timestamp actual en formato ISO 8601
             val now = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
 
-            // Construye el cuerpo de la solicitud con el puntaje obtenido
             val request = SensorIngestRequest(
-                player_id                  = PLAYER_ID,
+                player_id                  = playerId,
                 sensor_endpoint_id         = SENSOR_ENDPOINT_ID,
                 players_sensor_endpoint_id = PLAYERS_SENSOR_ENDPOINT_ID,
                 raw_payload   = mapOf("security_score" to score, "date" to now),

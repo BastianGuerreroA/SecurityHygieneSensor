@@ -13,16 +13,32 @@
         android:gravity="center_horizontal"
         android:padding="24dp">
 
-        <!-- Título -->
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Título y Usuario -->
+        <RelativeLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="SECURITY SENSOR"
-            android:textColor="@color/ring_light_blue"
-            android:textSize="11sp"
-            android:letterSpacing="0.2"
             android:paddingTop="16dp"
-            android:paddingBottom="24dp"/>
+            android:paddingBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:text="SECURITY SENSOR"
+                android:textColor="@color/ring_light_blue"
+                android:textSize="11sp"
+                android:letterSpacing="0.2" />
+
+            <TextView
+                android:id="@+id/tvUserWelcome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="Hola, ..."
+                android:textColor="@color/text_muted"
+                android:textSize="10sp"
+                android:textStyle="italic" />
+        </RelativeLayout>
 
         <!-- Anillo + Score -->
         <FrameLayout
