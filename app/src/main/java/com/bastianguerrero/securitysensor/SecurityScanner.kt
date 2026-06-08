@@ -9,7 +9,7 @@ import androidx.biometric.BiometricManager
 
 //guarda el estado, el mensaje y los puntos
 enum class BiometricState(val points: Int, val message: String) {
-    READY(10, "Biometría fuerte lista (huella/face)"),
+    READY(15, "Biometría fuerte lista (huella/face)"),
     NO_HARDWARE(0, "Sin hardware biométrico"),
     NOT_ENROLLED(0, "Hardware disponible pero sin huella registrada"),
     UNAVAILABLE(0, "Hardware biométrico no disponible ahora"),
@@ -18,7 +18,7 @@ enum class BiometricState(val points: Int, val message: String) {
 class SecurityScanner(private val context: Context) {
 
     companion object {
-        const val MAX_SCORE = 80 // 35 (PIN) + 10 (Bio) + 25 (Parche) + 10 (Apps)
+        const val MAX_SCORE = 100 // 40 (PIN) + 15 (Bio) + 30 (Parche) + 15 (Apps)
     }
 
     // 1. Captura la presencia de bloqueo de pantalla (PIN/Patrón/Contraseña)

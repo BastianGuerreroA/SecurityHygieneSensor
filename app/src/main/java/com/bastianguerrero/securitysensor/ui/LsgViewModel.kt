@@ -35,9 +35,9 @@ class LsgViewModel : ViewModel() {
     }
 
     // ─── FUNCIÓN 2: Solo envía el puntaje del sensor a LSG ──────────────────
-    fun sendScanResult(score: Int) {
+    fun sendScanResult(score: Int, deviceSecurity: Map<String, Any>) {
         viewModelScope.launch {
-            val success = repo.ingestSensorData(score)
+            val success = repo.ingestSensorData(score, deviceSecurity)
             _ingestResult.postValue(success)
         }
     }

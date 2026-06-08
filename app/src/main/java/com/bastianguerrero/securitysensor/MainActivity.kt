@@ -14,7 +14,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import android.widget.ImageView
-// Agrega este import arriba
+
 import com.bastianguerrero.securitysensor.ui.LsgViewModel
 import androidx.activity.viewModels
 import android.widget.Toast
@@ -71,10 +71,10 @@ class MainActivity : AppCompatActivity() {
         val appsRisk = scanner.areUnknownSourcesAllowed()
 
         // --- Puntaje ---
-        val pinPts   = if (pinOk) 35 else 0
-        val bioPts   = bioState.points  // 10 si READY, 0 si no
-        val patchPts = if (isPatchRecent(patch)) 25 else 0
-        val appsPts  = if (!appsRisk) 10 else 0
+        val pinPts   = if (pinOk) 40 else 0
+        val bioPts   = bioState.points  // 15 si READY, 0 si no
+        val patchPts = if (isPatchRecent(patch)) 30 else 0
+        val appsPts  = if (!appsRisk) 15 else 0
         val total    = pinPts + bioPts + patchPts + appsPts
 
         // --- Color según puntaje ---
@@ -125,8 +125,22 @@ class MainActivity : AppCompatActivity() {
             if (!appsRisk) "Bloqueadas" else "Habilitadas — riesgo",
             appsPts, if (!appsRisk) COLOR_GREEN else COLOR_RED)
 
-        // Enviar resultado a LSG de forma automática tras el escaneo
-        //lsgViewModel.sendScanResult(total)
+        // Preparar el detalle técnico para el raw_payload según requerimiento
+        val daysSinceUpdate = try {
+            val patchDate = LocalDate.parse(patch, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            ChronoUnit.DAYS.between(patchDate, LocalDate.now()).toInt()
+        } catch (e: Exception) { -1 }
+
+        val deviceSecurityDetails = mapOf(
+            "screen_lock_enabled" to pinOk,
+            "screen_lock_type" to if (pinOk) "SECURE_LOCK" else "NONE",
+            "biometric_enabled" to (bioState == BiometricState.READY),
+            "unknown_sources_enabled" to appsRisk,
+            "last_security_update_days" to daysSinceUpdate
+        )
+
+        // Enviar resultado a LSG de forma automática tras el escaneo con el detalle técnico
+        lsgViewModel.sendScanResult(total, deviceSecurityDetails)
 
         btn.isEnabled = true
         btn.text = "ESCANEAR DE NUEVO"

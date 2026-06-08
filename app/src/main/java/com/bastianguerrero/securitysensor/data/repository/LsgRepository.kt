@@ -16,9 +16,11 @@ object LsgRepository {
     private var playerId: Int = 0
     private var userName: String = ""
 
-    // ⚠️ Reemplaza con tus IDs reales de la plataforma LSG
-    private val SENSOR_ENDPOINT_ID         = 3
-    private val PLAYERS_SENSOR_ENDPOINT_ID = 8
+    // ID fijo para el tipo de sensor "Higiene y Seguridad"
+    private val SENSOR_ENDPOINT_ID = 3
+    
+    // Este ID ahora es DINÁMICO para cada jugador
+    private var playersSensorEndpointId: Int = 0
 
     // Token guardado en memoria tras el login exitoso
     private var token: String? = null
@@ -35,7 +37,7 @@ object LsgRepository {
                 token = response.body()?.access_token
                 Log.d("LSG", "Login exitoso. Token guardado ✓")
                 
-                // Obtener información del usuario inmediatamente
+                // Obtener información del usuario e IDs dinámicos inmediatamente
                 fetchUserInfo()
             } else {
                 Log.e("LSG", "Login fallido: ${response.code()}")
@@ -56,6 +58,9 @@ object LsgRepository {
                 playerId = data?.id_players ?: 0
                 userName = data?.name ?: ""
                 Log.d("LSG", "Usuario identificado: $userName (ID: $playerId)")
+                
+                // PASO SOLICITADO: Buscar el ID dinámico de vinculación jugador-sensor
+                fetchDynamicSensorId()
                 true
             } else {
                 Log.e("LSG", "Error obteniendo whoami: ${response.code()}")
@@ -67,10 +72,41 @@ object LsgRepository {
         }
     }
 
+    /**
+     * Recupera la lista de sensores del jugador y busca el ID de vinculación correcto
+     * para el sensor de "Higiene y Seguridad" (id_sensor_endpoint == 3).
+     */
+    private suspend fun fetchDynamicSensorId() {
+        val currentToken = token ?: return
+        try {
+            val response = RetrofitInstance.coreApi.getPlayerSensors("Bearer $currentToken", playerId)
+            if (response.isSuccessful) {
+                // Buscamos el registro que pertenezca a nuestro SENSOR_ENDPOINT_ID
+                val sensorMapping = response.body()?.find { it.id_sensor_endpoint == SENSOR_ENDPOINT_ID }
+                
+                if (sensorMapping != null) {
+                    playersSensorEndpointId = sensorMapping.id_players_sensor_endpoint
+                    Log.d("LSG", "Vinculación encontrada. players_sensor_endpoint_id: $playersSensorEndpointId")
+                } else {
+                    Log.e("LSG", "No se encontró vinculación para el sensor $SENSOR_ENDPOINT_ID")
+                }
+            } else {
+                Log.e("LSG", "Error obteniendo sensores del jugador: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e("LSG", "Error de red al obtener sensores: ${e.message}")
+        }
+    }
+
     // ─── FUNCIÓN 2: Envía el puntaje del escaneo al webhook de LSG ──────────
-    suspend fun ingestSensorData(score: Int): Boolean {
-        if (token == null) {
+    suspend fun ingestSensorData(score: Int, deviceSecurity: Map<String, Any>): Boolean {
+        val currentToken = token ?: run {
             Log.e("LSG", "No hay token. El usuario debe loguearse primero.")
+            return false
+        }
+
+        if (playersSensorEndpointId == 0) {
+            Log.e("LSG", "No se puede enviar: players_sensor_endpoint_id no recuperado.")
             return false
         }
 
@@ -80,16 +116,18 @@ object LsgRepository {
             val request = SensorIngestRequest(
                 player_id                  = playerId,
                 sensor_endpoint_id         = SENSOR_ENDPOINT_ID,
-                players_sensor_endpoint_id = PLAYERS_SENSOR_ENDPOINT_ID,
-                raw_payload   = mapOf("security_score" to score, "date" to now),
+                players_sensor_endpoint_id = playersSensorEndpointId, // Dinámico
+                raw_payload   = mapOf(
+                    "device_security" to deviceSecurity
+                ),
                 parsed_value  = score.toDouble(),
-                status        = "OK",
+                status        = "OK",      // Requerido por el profesor
                 error_message = null,
-                occurred_at   = now
+                occurred_at   = now        // Requerido por el profesor
             )
 
             val response = RetrofitInstance.coreApi.ingestSensorEvent(
-                authHeader = "Bearer $token",
+                authHeader = "Bearer $currentToken",
                 request    = request
             )
 
