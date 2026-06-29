@@ -1,9 +1,12 @@
 package com.bastianguerrero.securitysensor.data.repository
 
 import android.util.Log
+import com.bastianguerrero.securitysensor.data.model.PointsAdjustRequest
 import com.bastianguerrero.securitysensor.data.model.SensorIngestRequest
+import com.bastianguerrero.securitysensor.data.model.TokenRemainingResponse
 import com.bastianguerrero.securitysensor.data.network.RetrofitInstance
 import java.time.Instant
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
@@ -28,7 +31,6 @@ object LsgRepository {
     fun getPlayerId() = playerId
     fun getUserName() = userName
 
-    // ─── FUNCIÓN 1: Login → guarda el token y obtiene info del usuario ──────
     suspend fun login(username: String, password: String): Boolean {
         return try {
             val response = RetrofitInstance.authApi.login(username, password)
@@ -100,10 +102,11 @@ object LsgRepository {
 
     // ─── FUNCIÓN 2: Envía el puntaje del escaneo al webhook de LSG ──────────
     suspend fun ingestSensorData(score: Int, deviceSecurity: Map<String, Any>): Boolean {
-        val currentToken = token ?: run {
-            Log.e("LSG", "No hay token. El usuario debe loguearse primero.")
+        if (!checkAndRefreshToken()) {
+            Log.e("LSG", "Token inválido o expirado. No se puede realizar la ingesta.")
             return false
         }
+        val currentToken = token ?: return false
 
         if (playersSensorEndpointId == 0) {
             Log.e("LSG", "No se puede enviar: players_sensor_endpoint_id no recuperado.")
@@ -140,6 +143,85 @@ object LsgRepository {
             }
         } catch (e: Exception) {
             Log.e("LSG", "Error de red en ingest: ${e.message}")
+            false
+        }
+    }
+
+    // ─── FUNCIÓN 3: Envía el puntaje a la dimensión Mental como ajuste ─────
+    suspend fun adjustUserPoints(score: Int): Boolean {
+        if (!checkAndRefreshToken()) {
+            Log.e("LSG", "Token inválido o expirado. No se puede realizar el ajuste de puntos.")
+            return false
+        }
+        val currentToken = token ?: return false
+
+        return try {
+            val request = PointsAdjustRequest(
+                attribute_id = 4, // MENTAL_BASE
+                direction = "CREDIT",
+                amount = score,
+                reason = "Security Hygiene Scan Score - ${LocalDate.now()}",
+                videogame_id = 14
+            )
+
+            val response = RetrofitInstance.coreApi.adjustPoints(
+                authHeader = "Bearer $currentToken",
+                playerId   = playerId,
+                request    = request
+            )
+
+            if (response.isSuccessful) {
+                Log.d("LSG", "Ajuste de puntos exitoso para dimensión Mental ✓")
+                true
+            } else {
+                Log.e("LSG", "Ajuste de puntos fallido: ${response.code()} ${response.errorBody()?.string()}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("LSG", "Error de red en adjustPoints: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Comprueba el tiempo de vida restante del token. Si es inferior a 5 minutos (300 segundos),
+     * realiza el refresco automático llamando al endpoint /token/refresh de lsg-auth.
+     * Si el token ya expiró o falla el refresco (retorna 401), limpia el token y devuelve false.
+     */
+    suspend fun checkAndRefreshToken(): Boolean {
+        val currentToken = token ?: return false
+        return try {
+            val response = RetrofitInstance.authApi.getTokenRemaining("Bearer $currentToken")
+            if (response.isSuccessful) {
+                val remainingSeconds = response.body()?.expires_in_seconds ?: 0
+                Log.d("LSG", "Tiempo restante del token: $remainingSeconds segundos")
+
+                if (remainingSeconds < 300) {
+                    Log.d("LSG", "Token próximo a expirar (< 5 min). Refrescando...")
+                    val refreshResponse = RetrofitInstance.authApi.refreshToken("Bearer $currentToken")
+                    if (refreshResponse.isSuccessful) {
+                        token = refreshResponse.body()?.access_token
+                        Log.d("LSG", "Token refrescado exitosamente ✓")
+                        true
+                    } else {
+                        Log.e("LSG", "Error al refrescar token: ${refreshResponse.code()}")
+                        if (refreshResponse.code() == 401) {
+                            token = null
+                        }
+                        false
+                    }
+                } else {
+                    true
+                }
+            } else {
+                Log.e("LSG", "Error al verificar tiempo restante: ${response.code()}")
+                if (response.code() == 401) {
+                    token = null
+                }
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("LSG", "Error de red al verificar/refrescar token: ${e.message}")
             false
         }
     }

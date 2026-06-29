@@ -1,6 +1,7 @@
 package com.bastianguerrero.securitysensor.data.network
 
 import com.bastianguerrero.securitysensor.data.model.PlayerSensorResponse
+import com.bastianguerrero.securitysensor.data.model.PointsAdjustRequest
 import com.bastianguerrero.securitysensor.data.model.SensorIngestRequest
 import retrofit2.Response
 import retrofit2.http.Body
@@ -21,5 +22,12 @@ interface LsgApiService {
     suspend fun ingestSensorEvent(
         @Header("Authorization") authHeader: String,
         @Body request: SensorIngestRequest
+    ): Response<Map<String, Any>>
+
+    @POST("players/{player_id}/points/adjust")
+    suspend fun adjustPoints(
+        @Header("Authorization") authHeader: String,
+        @Path("player_id") playerId: Int,
+        @Body request: PointsAdjustRequest
     ): Response<Map<String, Any>>
 }

@@ -30,6 +30,9 @@ class MainActivity : AppCompatActivity() {
     // Agrega esta propiedad en la clase
     private val lsgViewModel: LsgViewModel by viewModels()
 
+    private val PREFS_NAME = "security_sensor_prefs"
+    private val KEY_LAST_SCAN = "last_scan_timestamp"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -39,7 +42,35 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        findViewById<Button>(R.id.btnScan).setOnClickListener { runScan() }
+        val sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val lastScan = sharedPrefs.getLong(KEY_LAST_SCAN, 0L)
+        lsgViewModel.setLastScanTimestamp(lastScan)
+
+        val btnScan = findViewById<Button>(R.id.btnScan)
+        btnScan.setOnClickListener { runScan() }
+
+        // Observa si se permite realizar el escaneo
+        lsgViewModel.isScanAllowed.observe(this) { allowed ->
+            if (lsgViewModel.remainingTimeFormatted.value == null) {
+                btnScan.isEnabled = allowed
+                if (allowed) {
+                    btnScan.text = "ESCANEAR"
+                }
+            }
+        }
+
+        // Observa el tiempo restante formateado para actualizar el texto del botón
+        lsgViewModel.remainingTimeFormatted.observe(this) { remainingTime ->
+            if (remainingTime != null) {
+                btnScan.isEnabled = false
+                btnScan.text = "Disponible en: $remainingTime"
+            } else {
+                if (lsgViewModel.isScanAllowed.value == true) {
+                    btnScan.isEnabled = true
+                    btnScan.text = "ESCANEAR"
+                }
+            }
+        }
 
         // Observa el nombre de usuario
         lsgViewModel.userName.observe(this) { name ->
@@ -51,14 +82,27 @@ class MainActivity : AppCompatActivity() {
         // Observa si el envío del puntaje a LSG fue exitoso o no
         lsgViewModel.ingestResult.observe(this) { success ->
             when (success) {
-                true  -> Toast.makeText(this, "✓ Puntaje enviado a LSG", Toast.LENGTH_SHORT).show()
-                false -> Toast.makeText(this, "✗ Error al enviar puntaje", Toast.LENGTH_SHORT).show()
+                true  -> {
+                    Toast.makeText(this, "✓ Puntaje enviado a LSG", Toast.LENGTH_SHORT).show()
+                    val currentTime = System.currentTimeMillis()
+                    sharedPrefs.edit().putLong(KEY_LAST_SCAN, currentTime).apply()
+                    lsgViewModel.setLastScanTimestamp(currentTime)
+                }
+                false -> {
+                    Toast.makeText(this, "✗ Error al enviar puntaje", Toast.LENGTH_SHORT).show()
+                    if (lsgViewModel.remainingTimeFormatted.value == null) {
+                        btnScan.isEnabled = true
+                        btnScan.text = "ESCANEAR DE NUEVO"
+                    }
+                }
                 null  -> { }
             }
         }
     }
 
     private fun runScan() {
+        if (lsgViewModel.isScanAllowed.value == false) return
+
         val scanner = SecurityScanner(this)
         val btn = findViewById<Button>(R.id.btnScan)
         btn.isEnabled = false
@@ -141,9 +185,6 @@ class MainActivity : AppCompatActivity() {
 
         // Enviar resultado a LSG de forma automática tras el escaneo con el detalle técnico
         lsgViewModel.sendScanResult(total, deviceSecurityDetails)
-
-        btn.isEnabled = true
-        btn.text = "ESCANEAR DE NUEVO"
     }
 
     private fun setCard(dotId: Int, valId: Int, ptsId: Int,
