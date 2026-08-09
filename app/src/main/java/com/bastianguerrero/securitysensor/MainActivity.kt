@@ -119,7 +119,7 @@ class MainActivity : AppCompatActivity() {
         val bioPts   = bioState.points  // 15 si READY, 0 si no
         val patchPts = if (isPatchRecent(patch)) 30 else 0
         val appsPts  = if (!appsRisk) 15 else 0
-        val total    = pinPts + bioPts + patchPts + appsPts
+        val total    = pinPts + bioPts + patchPts + appsPts  // Siendo el total 100 puntos
 
         // --- Color según puntaje ---
         val percentage = total.toFloat() / SecurityScanner.MAX_SCORE

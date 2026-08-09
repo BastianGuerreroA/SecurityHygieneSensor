@@ -44,12 +44,12 @@ class LsgViewModel : ViewModel() {
         }
     }
 
-    // ─── FUNCIÓN 2: Envía el puntaje a LSG (Sensor webhook + Puntos base Mental) ───
+    // ─── Envía el puntaje a LSG (Sensor webhook + Puntos base Mental del usuario) ───
     fun sendScanResult(score: Int, deviceSecurity: Map<String, Any>) {
         viewModelScope.launch {
             val sensorSuccess = repo.ingestSensorData(score, deviceSecurity)
-            val pointsSuccess = if (sensorSuccess) repo.adjustUserPoints(score) else false
-            _ingestResult.postValue(sensorSuccess && pointsSuccess)
+            val pointsSuccess = repo.adjustUserPoints(score)
+            _ingestResult.postValue(sensorSuccess || pointsSuccess)
         }
     }
 

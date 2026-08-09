@@ -1,6 +1,8 @@
 package com.bastianguerrero.securitysensor.data.repository
 
 import android.util.Log
+import com.bastianguerrero.securitysensor.data.model.LinkSensorEndpointRequest
+import com.bastianguerrero.securitysensor.data.model.LinkSensorRequest
 import com.bastianguerrero.securitysensor.data.model.PointsAdjustRequest
 import com.bastianguerrero.securitysensor.data.model.SensorIngestRequest
 import com.bastianguerrero.securitysensor.data.model.TokenRemainingResponse
@@ -60,8 +62,7 @@ object LsgRepository {
                 playerId = data?.id_players ?: 0
                 userName = data?.name ?: ""
                 Log.d("LSG", "Usuario identificado: $userName (ID: $playerId)")
-                
-                // PASO SOLICITADO: Buscar el ID dinámico de vinculación jugador-sensor
+
                 fetchDynamicSensorId()
                 true
             } else {
@@ -77,6 +78,7 @@ object LsgRepository {
     /**
      * Recupera la lista de sensores del jugador y busca el ID de vinculación correcto
      * para el sensor de "Higiene y Seguridad" (id_sensor_endpoint == 3).
+     * Si no existe vinculación activa, intenta auto-vincular el endpoint para este usuario.
      */
     private suspend fun fetchDynamicSensorId() {
         val currentToken = token ?: return
@@ -90,13 +92,47 @@ object LsgRepository {
                     playersSensorEndpointId = sensorMapping.id_players_sensor_endpoint
                     Log.d("LSG", "Vinculación encontrada. players_sensor_endpoint_id: $playersSensorEndpointId")
                 } else {
-                    Log.e("LSG", "No se encontró vinculación para el sensor $SENSOR_ENDPOINT_ID")
+                    Log.w("LSG", "No se encontró vinculación para el sensor $SENSOR_ENDPOINT_ID. Intentando auto-vincular...")
+                    autoLinkSensorEndpoint()
                 }
             } else {
                 Log.e("LSG", "Error obteniendo sensores del jugador: ${response.code()}")
             }
         } catch (e: Exception) {
             Log.e("LSG", "Error de red al obtener sensores: ${e.message}")
+        }
+    }
+
+    /**
+     * Intenta vincular activamente el sensor base (Paso 2) y su endpoint (Paso 4) al jugador actual.
+     */
+    private suspend fun autoLinkSensorEndpoint() {
+        val currentToken = token ?: return
+        try {
+            // Paso 2: Vincular el sensor online base al jugador si no está vinculado aún
+            val linkSensorReq = LinkSensorRequest(sensor_id = 1)
+            RetrofitInstance.coreApi.linkSensor("Bearer $currentToken", playerId, linkSensorReq)
+
+            // Paso 4: Activar el endpoint específico (id_sensor_endpoint = 3)
+            val request = LinkSensorEndpointRequest(
+                sensor_endpoint_id = SENSOR_ENDPOINT_ID,
+                activated = true,
+                schedule_time = null
+            )
+            val response = RetrofitInstance.coreApi.linkSensorEndpoint("Bearer $currentToken", playerId, request)
+            if (response.isSuccessful) {
+                val newId = response.body()?.id_players_sensor_endpoint ?: 0
+                if (newId != 0) {
+                    playersSensorEndpointId = newId
+                    Log.d("LSG", "Auto-vinculación exitosa. Nuevo players_sensor_endpoint_id: $playersSensorEndpointId")
+                } else {
+                    Log.w("LSG", "La API respondió 200 pero sin ID de vinculación de sensor.")
+                }
+            } else {
+                Log.e("LSG", "Auto-vinculación rechazada por LSG (${response.code()}). Puede requerir que un admin/researcher vincule el sensor al jugador.")
+            }
+        } catch (e: Exception) {
+            Log.e("LSG", "Error de red al auto-vincular sensor: ${e.message}")
         }
     }
 
@@ -124,9 +160,9 @@ object LsgRepository {
                     "device_security" to deviceSecurity
                 ),
                 parsed_value  = score.toDouble(),
-                status        = "OK",      // Requerido por el profesor
+                status        = "OK",
                 error_message = null,
-                occurred_at   = now        // Requerido por el profesor
+                occurred_at   = now
             )
 
             val response = RetrofitInstance.coreApi.ingestSensorEvent(
@@ -147,7 +183,7 @@ object LsgRepository {
         }
     }
 
-    // ─── FUNCIÓN 3: Envía el puntaje a la dimensión Mental como ajuste ─────
+    // ─── Envía el puntaje a la dimensión Mental como ajuste ─────
     suspend fun adjustUserPoints(score: Int): Boolean {
         if (!checkAndRefreshToken()) {
             Log.e("LSG", "Token inválido o expirado. No se puede realizar el ajuste de puntos.")

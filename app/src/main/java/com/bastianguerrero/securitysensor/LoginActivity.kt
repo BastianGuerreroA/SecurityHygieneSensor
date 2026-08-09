@@ -9,6 +9,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import com.bastianguerrero.securitysensor.telemetry.PerformanceTracker
 import com.bastianguerrero.securitysensor.ui.LsgViewModel
 
 class LoginActivity : AppCompatActivity() {
@@ -70,5 +71,12 @@ class LoginActivity : AppCompatActivity() {
         val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
         finish()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            PerformanceTracker.markInitialLoadCompleted()
+        }
     }
 }
