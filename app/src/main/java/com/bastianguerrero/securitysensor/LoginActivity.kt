@@ -76,7 +76,7 @@ class LoginActivity : AppCompatActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
-            PerformanceTracker.markInitialLoadCompleted()
+            // PerformanceTracker.markInitialLoadCompleted() // Telemetría deshabilitada
         }
     }
 }

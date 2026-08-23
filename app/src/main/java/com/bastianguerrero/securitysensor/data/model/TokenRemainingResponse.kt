@@ -1,7 +1,11 @@
 package com.bastianguerrero.securitysensor.data.model
 
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
+
+@Keep
 data class TokenRemainingResponse(
-    val expires_in_seconds: Int,
-    val expires_at: String,
-    val issued_at: String
+    @SerializedName("expires_in_seconds") val expires_in_seconds: Int,
+    @SerializedName("expires_at") val expires_at: String,
+    @SerializedName("issued_at") val issued_at: String
 )

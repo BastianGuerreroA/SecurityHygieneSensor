@@ -1,21 +1,30 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ProGuard rules for SecurityHygieneSensor
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Evitar que R8/ProGuard ofusque u optimice las clases de modelo de la API
+-keep class com.bastianguerrero.securitysensor.data.model.** { *; }
+-keepclassmembers class com.bastianguerrero.securitysensor.data.model.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Proteger anotaciones de Gson y clases de Retrofit
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes *Annotation*
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Mantener las interfaces de Retrofit
+-keep interface com.bastianguerrero.securitysensor.data.network.** { *; }
+
+# Reglas necesarias para OkHttp y Retrofit
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn retrofit2.**
+-keepattributes Signature, InnerClasses, EnclosingMethod
+
+# OkHttp3
+-keepattributes *Annotation*
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-dontwarn okhttp3.**

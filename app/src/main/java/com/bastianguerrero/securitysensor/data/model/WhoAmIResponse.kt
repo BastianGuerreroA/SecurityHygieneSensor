@@ -1,9 +1,13 @@
 package com.bastianguerrero.securitysensor.data.model
 
+import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
+
+@Keep
 data class WhoAmIResponse(
-    val id_players: Int,
-    val name: String,
-    val email: String,
-    val age: Int,
-    val roles: List<String>
+    @SerializedName("id_players") val id_players: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("age") val age: Int,
+    @SerializedName("roles") val roles: List<String>
 )

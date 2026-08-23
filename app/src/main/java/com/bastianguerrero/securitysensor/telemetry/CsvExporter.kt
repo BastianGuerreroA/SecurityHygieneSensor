@@ -15,6 +15,9 @@ data class PerformanceSummary(
     val fpsMax: Int,
     val memAvgMb: Float,
     val memMaxMb: Float,
+    val batteryConsumedMah: Float,
+    val batteryStartPct: Float,
+    val batteryEndPct: Float,
     val sessionDurationSec: Float
 )
 
@@ -41,6 +44,9 @@ object CsvExporter {
                 writer.append(String.format(Locale.US, "FPS_Max,%d\n", summary.fpsMax))
                 writer.append(String.format(Locale.US, "Mem_Prom_MB,%.2f MB\n", summary.memAvgMb))
                 writer.append(String.format(Locale.US, "Mem_Max_MB,%.2f MB\n", summary.memMaxMb))
+                writer.append(String.format(Locale.US, "Consumo_Bateria_mAh,%.3f mAh\n", summary.batteryConsumedMah))
+                writer.append(String.format(Locale.US, "Bateria_Inicial_Pct,%.1f%%\n", summary.batteryStartPct))
+                writer.append(String.format(Locale.US, "Bateria_Final_Pct,%.1f%%\n", summary.batteryEndPct))
                 writer.append(String.format(Locale.US, "Duracion_Sesion_s,%.2f s\n\n", summary.sessionDurationSec))
             }
 

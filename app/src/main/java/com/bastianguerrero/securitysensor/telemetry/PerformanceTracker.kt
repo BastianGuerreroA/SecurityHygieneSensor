@@ -2,6 +2,9 @@ package com.bastianguerrero.securitysensor.telemetry
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Debug
 import android.os.Handler
@@ -21,7 +24,9 @@ import kotlin.math.min
 
 object PerformanceTracker {
     private const val TAG = "PerformanceTracker"
-    private const val SAMPLE_INTERVAL_MS = 1000L
+    private const val SAMPLE_INTERVAL_MS = 5000L
+
+    private val processorCores: Int by lazy { Runtime.getRuntime().availableProcessors() }
 
     private var appStartTimeMs: Long = 0L
     private var initialLoadTimeSec: Float = -1.0f
@@ -45,6 +50,10 @@ object PerformanceTracker {
     private var fpsCount: Int = 0
     private var fpsMin: Int = Int.MAX_VALUE
     private var fpsMax: Int = 0
+
+    // Battery Metrics
+    private var startChargeUah: Int = 0
+    private var startBatteryPct: Float = -1f
 
     // Handler Thread for background sampling
     private var samplerThread: HandlerThread? = null
@@ -70,7 +79,7 @@ object PerformanceTracker {
     }
 
     @Synchronized
-    fun startSession() {
+    fun startSession(context: Context) {
         if (isSessionRunning) return
 
         isSessionRunning = true
@@ -91,6 +100,16 @@ object PerformanceTracker {
         fpsMin = Int.MAX_VALUE
         fpsMax = 0
 
+        // Battery initial state
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        startChargeUah = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) ?: 0
+
+        val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        val batteryStatusIntent: Intent? = context.registerReceiver(null, batteryFilter)
+        val startLevel = batteryStatusIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val startScale = batteryStatusIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        startBatteryPct = if (startLevel >= 0 && startScale > 0) (startLevel * 100f / startScale) else -1f
+
         // Start sampler thread
         samplerThread = HandlerThread("PerfSamplerThread").apply {
             start()
@@ -98,7 +117,7 @@ object PerformanceTracker {
             samplerHandler?.post(sampleRunnable)
         }
 
-        Log.i(TAG, "Sesión de seguimiento de rendimiento iniciada.")
+        Log.i(TAG, "Sesión de seguimiento de rendimiento iniciada. Batería inicial: $startBatteryPct%, Carga: $startChargeUah uAh")
     }
 
     @Synchronized
@@ -121,6 +140,23 @@ object PerformanceTracker {
         val finalFpsMin = if (fpsMin != Int.MAX_VALUE) fpsMin else 0
         val finalFpsMax = fpsMax
 
+        // Battery final state
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val endChargeUah = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) ?: 0
+
+        val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        val batteryStatusIntent: Intent? = context.registerReceiver(null, batteryFilter)
+        val endLevel = batteryStatusIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val endScale = batteryStatusIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val endBatteryPct = if (endLevel >= 0 && endScale > 0) (endLevel * 100f / endScale) else -1f
+
+        val consumedUah = if (startChargeUah > 0 && endChargeUah > 0 && startChargeUah >= endChargeUah) {
+            startChargeUah - endChargeUah
+        } else {
+            0
+        }
+        val batteryConsumedMah = consumedUah / 1000.0f
+
         val timestampStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
         val summary = PerformanceSummary(
@@ -132,10 +168,13 @@ object PerformanceTracker {
             fpsMax = finalFpsMax,
             memAvgMb = memAvg,
             memMaxMb = memMaxMb,
+            batteryConsumedMah = batteryConsumedMah,
+            batteryStartPct = startBatteryPct,
+            batteryEndPct = endBatteryPct,
             sessionDurationSec = durationSec
         )
 
-        Log.i(TAG, "Sesión finalizada. Carga inicial: ${summary.initialLoadTimeSec}s, CPU Prom: ${summary.cpuAvgPercent}%, FPS Prom: ${summary.fpsAvg}, Mem Prom: ${summary.memAvgMb}MB")
+        Log.i(TAG, "Sesión finalizada. Consumo batería: ${summary.batteryConsumedMah} mAh, Carga inicial: ${summary.initialLoadTimeSec}s, CPU Prom: ${summary.cpuAvgPercent}%, FPS Prom: ${summary.fpsAvg}, Mem Prom: ${summary.memAvgMb}MB")
 
         return CsvExporter.saveSessionSummary(context, summary)
     }
@@ -152,7 +191,7 @@ object PerformanceTracker {
     private fun sampleCpuAndMemory() {
         val currentCpuMs = Process.getElapsedCpuTime()
         val currentWallMs = SystemClock.elapsedRealtime()
-        val cores = Runtime.getRuntime().availableProcessors()
+        val cores = processorCores
 
         val deltaCpu = currentCpuMs - lastProcessCpuTimeMs
         val deltaWall = currentWallMs - lastWallTimeMs

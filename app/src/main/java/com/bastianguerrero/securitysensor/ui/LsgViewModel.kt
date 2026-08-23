@@ -62,12 +62,18 @@ class LsgViewModel : ViewModel() {
             return
         }
 
+        val cooldownMs = 24 * 60 * 60 * 1000L // 24 horas en milisegundos
+        val initialTimeLeft = cooldownMs - (System.currentTimeMillis() - timestamp)
+        if (initialTimeLeft <= 0) {
+            _isScanAllowed.postValue(true)
+            _remainingTimeFormatted.postValue(null)
+            return
+        }
+
         timerJob = viewModelScope.launch {
             while (true) {
                 val now = System.currentTimeMillis()
-                val timePassed = now - timestamp
-                val cooldown = 24 * 60 * 60 * 1000L // 24 horas en milisegundos
-                val timeLeft = cooldown - timePassed
+                val timeLeft = cooldownMs - (now - timestamp)
 
                 if (timeLeft <= 0) {
                     _isScanAllowed.postValue(true)

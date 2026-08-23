@@ -13,7 +13,7 @@ class SecuritySensorApp : Application(), Application.ActivityLifecycleCallbacks 
     override fun onCreate() {
         super.onCreate()
         Log.i("SecuritySensorApp", "Inicializando aplicación SecurityHygieneSensor")
-        PerformanceTracker.onAppCreated()
+        // PerformanceTracker.onAppCreated() // Telemetría deshabilitada
         registerActivityLifecycleCallbacks(this)
     }
 
@@ -21,26 +21,26 @@ class SecuritySensorApp : Application(), Application.ActivityLifecycleCallbacks 
 
     override fun onActivityStarted(activity: Activity) {
         if (startedActivitiesCount == 0) {
-            Log.d("SecuritySensorApp", "La aplicación entró a primer plano. Iniciando sesión de monitoreo.")
-            PerformanceTracker.startSession()
+            // Log.d("SecuritySensorApp", "La aplicación entró a primer plano. Iniciando sesión de monitoreo.")
+            // PerformanceTracker.startSession(applicationContext) // Telemetría deshabilitada
         }
         startedActivitiesCount++
     }
 
     override fun onActivityResumed(activity: Activity) {
-        PerformanceTracker.attachToActivity(activity)
+        // PerformanceTracker.attachToActivity(activity) // Telemetría deshabilitada
     }
 
     override fun onActivityPaused(activity: Activity) {
-        PerformanceTracker.detachFromActivity(activity)
+        // PerformanceTracker.detachFromActivity(activity) // Telemetría deshabilitada
     }
 
     override fun onActivityStopped(activity: Activity) {
         startedActivitiesCount--
         if (startedActivitiesCount <= 0) {
             startedActivitiesCount = 0
-            Log.d("SecuritySensorApp", "La aplicación pasó a segundo plano o se cerró. Exportando métricas CSV...")
-            PerformanceTracker.stopAndExportSession(applicationContext)
+            // Log.d("SecuritySensorApp", "La aplicación pasó a segundo plano o se cerró. Exportando métricas CSV...")
+            // PerformanceTracker.stopAndExportSession(applicationContext) // Telemetría deshabilitada
         }
     }
 
