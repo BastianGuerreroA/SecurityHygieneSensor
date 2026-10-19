@@ -6,6 +6,13 @@ import android.os.Bundle
 import android.util.Log
 import com.bastianguerrero.securitysensor.telemetry.PerformanceTracker
 
+/**
+ * Clase principal de aplicación de SecurityHygieneSensor.
+ *
+ * Implementa [Application.ActivityLifecycleCallbacks] para monitorear las transiciones
+ * de la aplicación entre primer y segundo plano mediante el conteo de actividades activas.
+ * Permite además la conexión modular con el subsistema de telemetría [PerformanceTracker].
+ */
 class SecuritySensorApp : Application(), Application.ActivityLifecycleCallbacks {
 
     private var startedActivitiesCount = 0
@@ -13,7 +20,7 @@ class SecuritySensorApp : Application(), Application.ActivityLifecycleCallbacks 
     override fun onCreate() {
         super.onCreate()
         Log.i("SecuritySensorApp", "Inicializando aplicación SecurityHygieneSensor")
-        // PerformanceTracker.onAppCreated() // Telemetría deshabilitada
+        // PerformanceTracker.onAppCreated() // Telemetría deshabilitada temporalmente
         registerActivityLifecycleCallbacks(this)
     }
 
@@ -21,26 +28,24 @@ class SecuritySensorApp : Application(), Application.ActivityLifecycleCallbacks 
 
     override fun onActivityStarted(activity: Activity) {
         if (startedActivitiesCount == 0) {
-            // Log.d("SecuritySensorApp", "La aplicación entró a primer plano. Iniciando sesión de monitoreo.")
-            // PerformanceTracker.startSession(applicationContext) // Telemetría deshabilitada
+            // PerformanceTracker.startSession(applicationContext) // Telemetría deshabilitada temporalmente
         }
         startedActivitiesCount++
     }
 
     override fun onActivityResumed(activity: Activity) {
-        // PerformanceTracker.attachToActivity(activity) // Telemetría deshabilitada
+        // PerformanceTracker.attachToActivity(activity) // Telemetría deshabilitada temporalmente
     }
 
     override fun onActivityPaused(activity: Activity) {
-        // PerformanceTracker.detachFromActivity(activity) // Telemetría deshabilitada
+        // PerformanceTracker.detachFromActivity(activity) // Telemetría deshabilitada temporalmente
     }
 
     override fun onActivityStopped(activity: Activity) {
         startedActivitiesCount--
         if (startedActivitiesCount <= 0) {
             startedActivitiesCount = 0
-            // Log.d("SecuritySensorApp", "La aplicación pasó a segundo plano o se cerró. Exportando métricas CSV...")
-            // PerformanceTracker.stopAndExportSession(applicationContext) // Telemetría deshabilitada
+            // PerformanceTracker.stopAndExportSession(applicationContext) // Telemetría deshabilitada temporalmente
         }
     }
 

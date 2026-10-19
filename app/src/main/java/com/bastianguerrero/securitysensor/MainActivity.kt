@@ -19,6 +19,13 @@ import com.bastianguerrero.securitysensor.ui.LsgViewModel
 import androidx.activity.viewModels
 import android.widget.Toast
 
+/**
+ * Actividad principal del escáner de higiene y seguridad.
+ *
+ * Muestra el panel interactivo con la puntuación de seguridad del dispositivo,
+ * los detalles por categoría, controla el botón de escaneo conforme al tiempo de espera (cooldown)
+ * de 24 horas y despacha los resultados tanto al webhook de ingesta como al balance de puntos de LSG.
+ */
 class MainActivity : AppCompatActivity() {
 
     private val COLOR_BLUE  = Color.parseColor("#A3C7FF")
@@ -27,7 +34,6 @@ class MainActivity : AppCompatActivity() {
     private val COLOR_RED   = Color.parseColor("#F85149")
     private val COLOR_MUTED = Color.parseColor("#2D333B")
 
-    // Agrega esta propiedad en la clase
     private val lsgViewModel: LsgViewModel by viewModels()
 
     private val PREFS_NAME = "security_sensor_prefs"
@@ -100,6 +106,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Ejecuta el análisis de higiene de seguridad del dispositivo.
+     *
+     * Evalúa las configuraciones locales mediante [SecurityScanner], calcula el puntaje total,
+     * actualiza la interfaz de usuario con animaciones y estilos de color según el nivel de riesgo,
+     * y envía la telemetría del escaneo a la plataforma LSG.
+     */
     private fun runScan() {
         if (lsgViewModel.isScanAllowed.value == false) return
 
@@ -108,20 +121,20 @@ class MainActivity : AppCompatActivity() {
         btn.isEnabled = false
         btn.text = "ESCANEANDO..."
 
-        // --- Recopilar datos ---
+        // Recopilación de estado de seguridad local
         val pinOk    = scanner.isDeviceSecured()
         val bioState = scanner.getBiometricStatus()
         val patch    = scanner.getSecurityPatchLevel()
         val appsRisk = scanner.areUnknownSourcesAllowed()
 
-        // --- Puntaje ---
+        // Ponderación de puntajes por dimensión (total máximo: 100)
         val pinPts   = if (pinOk) 40 else 0
-        val bioPts   = bioState.points  // 15 si READY, 0 si no
+        val bioPts   = bioState.points
         val patchPts = if (isPatchRecent(patch)) 30 else 0
         val appsPts  = if (!appsRisk) 15 else 0
-        val total    = pinPts + bioPts + patchPts + appsPts  // Siendo el total 100 puntos
+        val total    = pinPts + bioPts + patchPts + appsPts
 
-        // --- Color según puntaje ---
+        // Determinación de nivel de riesgo y paleta cromática asociada
         val percentage = total.toFloat() / SecurityScanner.MAX_SCORE
 
         val mainColor = when {
@@ -137,7 +150,7 @@ class MainActivity : AppCompatActivity() {
             else                -> "RIESGO ALTO"
         }
 
-        // --- Actualizar UI ---
+        // Animación de la barra de progreso y actualización de etiquetas
         val progressBar = findViewById<ProgressBar>(R.id.circularProgressBar)
         ObjectAnimator.ofInt(progressBar, "progress", 0, total)
             .setDuration(1000)
@@ -153,6 +166,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(mainColor)
         }
 
+        // Asignación de valores y estado a las tarjetas de cada indicador
         setCard(R.id.dotPin, R.id.tvPinVal, R.id.tvPinPts,
             if (pinOk) "PIN / Patrón activo" else "Sin bloqueo configurado",
             pinPts, if (pinOk) COLOR_GREEN else COLOR_RED)
@@ -169,7 +183,7 @@ class MainActivity : AppCompatActivity() {
             if (!appsRisk) "Bloqueadas" else "Habilitadas — riesgo",
             appsPts, if (!appsRisk) COLOR_GREEN else COLOR_RED)
 
-        // Preparar el detalle técnico para el raw_payload según requerimiento
+        // Construcción de la carga útil técnica requerida por LSG
         val daysSinceUpdate = try {
             val patchDate = LocalDate.parse(patch, DateTimeFormatter.ofPattern("yyyy-MM-dd"))
             ChronoUnit.DAYS.between(patchDate, LocalDate.now()).toInt()
@@ -183,10 +197,20 @@ class MainActivity : AppCompatActivity() {
             "last_security_update_days" to daysSinceUpdate
         )
 
-        // Enviar resultado a LSG de forma automática tras el escaneo con el detalle técnico
+        // Envío de métricas y sincronización con backend
         lsgViewModel.sendScanResult(total, deviceSecurityDetails)
     }
 
+    /**
+     * Configura el indicador visual, texto descriptivo y puntaje asignado a una tarjeta de seguridad.
+     *
+     * @param dotId Identificador de la vista del indicador circular de estado.
+     * @param valId Identificador del TextView con la descripción textual del estado.
+     * @param ptsId Identificador del TextView que muestra los puntos aportados.
+     * @param value Texto representativo del estado del componente.
+     * @param pts Cantidad de puntos asignados.
+     * @param color Color representativo del estado (verde, ámbar o rojo).
+     */
     private fun setCard(dotId: Int, valId: Int, ptsId: Int,
                         value: String, pts: Int, color: Int) {
         findViewById<View>(dotId).backgroundTintList =
@@ -201,6 +225,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Determina si el nivel de parche de seguridad del sistema fue publicado dentro de los últimos 3 meses.
+     *
+     * @param dateStr Fecha del parche en formato "yyyy-MM-dd".
+     * @return `true` si la diferencia es de 3 meses o menor; `false` si es mayor o si no se pudo analizar.
+     */
     private fun isPatchRecent(dateStr: String): Boolean {
         return try {
             val patch = LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"))

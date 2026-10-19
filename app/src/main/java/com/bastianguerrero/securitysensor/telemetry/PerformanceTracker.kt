@@ -22,6 +22,16 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * Monitor de telemetría y rendimiento en tiempo de ejecución.
+ *
+ * Registra y calcula métricas clave del sistema durante el uso de la aplicación:
+ * - Tiempo de arranque e inicialización de la interfaz.
+ * - Porcentaje de uso de CPU normalizado por la cantidad de núcleos disponibles.
+ * - Consumo de memoria RAM (Java Heap + Native Heap).
+ * - Rendimiento de renderizado en cuadros por segundo (FPS) mediante [FrameMetrics].
+ * - Estimación del consumo de carga de batería (uAh a mAh).
+ */
 object PerformanceTracker {
     private const val TAG = "PerformanceTracker"
     private const val SAMPLE_INTERVAL_MS = 5000L
@@ -34,35 +44,38 @@ object PerformanceTracker {
     private var sessionStartTimeMs: Long = 0L
     private var isSessionRunning: Boolean = false
 
-    // CPU Metrics
+    // Métricas de CPU
     private var lastProcessCpuTimeMs: Long = 0L
     private var lastWallTimeMs: Long = 0L
     private var cpuSum: Float = 0.0f
     private var cpuSampleCount: Int = 0
 
-    // Memory Metrics (MB)
+    // Métricas de Memoria (MB)
     private var memSumMb: Float = 0.0f
     private var memMaxMb: Float = 0.0f
     private var memSampleCount: Int = 0
 
-    // FPS Metrics
+    // Métricas de cuadros por segundo (FPS)
     private var fpsSum: Float = 0.0f
     private var fpsCount: Int = 0
     private var fpsMin: Int = Int.MAX_VALUE
     private var fpsMax: Int = 0
 
-    // Battery Metrics
+    // Métricas de batería
     private var startChargeUah: Int = 0
     private var startBatteryPct: Float = -1f
 
-    // Handler Thread for background sampling
+    // Hilo y manejador para muestreo en segundo plano
     private var samplerThread: HandlerThread? = null
     private var samplerHandler: Handler? = null
 
-    // FrameMetrics listener reference
+    // Listener de métricas de cuadros (API 24+)
     @RequiresApi(Build.VERSION_CODES.N)
     private var frameMetricsListener: Window.OnFrameMetricsAvailableListener? = null
 
+    /**
+     * Registra la marca de tiempo inicial del ciclo de vida de la aplicación.
+     */
     fun onAppCreated() {
         if (appStartTimeMs == 0L) {
             appStartTimeMs = SystemClock.elapsedRealtime()
@@ -70,6 +83,9 @@ object PerformanceTracker {
         }
     }
 
+    /**
+     * Calcula la duración total de la carga inicial de la aplicación desde [onAppCreated].
+     */
     fun markInitialLoadCompleted() {
         if (initialLoadTimeSec < 0.0f && appStartTimeMs > 0L) {
             val elapsedMs = SystemClock.elapsedRealtime() - appStartTimeMs
@@ -78,6 +94,11 @@ object PerformanceTracker {
         }
     }
 
+    /**
+     * Inicia una sesión de monitoreo continuo, restableciendo acumuladores y lanzando el hilo de muestreo.
+     *
+     * @param context Contexto de la aplicación para acceder a servicios de sistema como batería.
+     */
     @Synchronized
     fun startSession(context: Context) {
         if (isSessionRunning) return
@@ -120,6 +141,13 @@ object PerformanceTracker {
         Log.i(TAG, "Sesión de seguimiento de rendimiento iniciada. Batería inicial: $startBatteryPct%, Carga: $startChargeUah uAh")
     }
 
+    /**
+     * Finaliza la sesión de monitoreo actual, calcula los promedios de métricas
+     * y genera el archivo CSV de reporte mediante [CsvExporter].
+     *
+     * @param context Contexto de la aplicación para acceder al estado final de la batería y al almacenamiento.
+     * @return Archivo [File] con los datos consolidados, o `null` si no había sesión en curso o si falló la exportación.
+     */
     @Synchronized
     fun stopAndExportSession(context: Context): File? {
         if (!isSessionRunning) return null
@@ -216,6 +244,11 @@ object PerformanceTracker {
         memSampleCount++
     }
 
+    /**
+     * Registra un listener de [FrameMetrics] en la ventana de la actividad activa para monitorear FPS (Android 7.0+).
+     *
+     * @param activity Actividad cuyo ciclo de renderizado se medirá.
+     */
     fun attachToActivity(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val window = activity.window
@@ -240,6 +273,11 @@ object PerformanceTracker {
         }
     }
 
+    /**
+     * Desvincula el listener de [FrameMetrics] de la ventana de la actividad al salir de primer plano.
+     *
+     * @param activity Actividad a desvincular.
+     */
     fun detachFromActivity(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val listener = frameMetricsListener

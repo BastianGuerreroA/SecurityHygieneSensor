@@ -12,36 +12,45 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
- * Repositorio Singleton para mantener la sesión y los datos del usuario
- * en toda la aplicación.
+ * Repositorio central (Singleton) responsable de la sesión del usuario,
+ * autenticación ante LSG, vinculación dinámica de sensores y envío de datos/puntos.
  */
 object LsgRepository {
 
-    // Datos dinámicos del usuario obtenidos vía /whoami
     private var playerId: Int = 0
     private var userName: String = ""
 
-    // ID fijo para el tipo de sensor "Higiene y Seguridad"
-    private val SENSOR_ENDPOINT_ID = 3
+    /** Identificador del tipo de sensor de Higiene y Seguridad según el catálogo de endpoints de LSG. */
+    private const val SENSOR_ENDPOINT_ID = 3
     
-    // Este ID ahora es DINÁMICO para cada jugador
+    /** Identificador dinámico de la relación jugador-sensor asignado por la plataforma. */
     private var playersSensorEndpointId: Int = 0
 
-    // Token guardado en memoria tras el login exitoso
+    /** Token JWT de acceso mantenido en memoria para las peticiones autenticadas. */
     private var token: String? = null
 
-    fun getPlayerId() = playerId
-    fun getUserName() = userName
+    /** Retorna el identificador único del jugador autenticado. */
+    fun getPlayerId(): Int = playerId
 
+    /** Retorna el nombre de visualización del jugador autenticado. */
+    fun getUserName(): String = userName
+
+    /**
+     * Autentica las credenciales del usuario contra el servicio LSG-Auth y recupera
+     * la información del perfil y sus sensores asociados.
+     *
+     * @param username Nombre de usuario.
+     * @param password Contraseña de usuario.
+     * @return `true` si la autenticación fue exitosa y se obtuvo el token; `false` en caso contrario.
+     */
     suspend fun login(username: String, password: String): Boolean {
         return try {
             val response = RetrofitInstance.authApi.login(username, password)
 
             if (response.isSuccessful) {
                 token = response.body()?.access_token
-                Log.d("LSG", "Login exitoso. Token guardado ✓")
+                Log.d("LSG", "Login exitoso. Token guardado.")
                 
-                // Obtener información del usuario e IDs dinámicos inmediatamente
                 fetchUserInfo()
             } else {
                 Log.e("LSG", "Login fallido: ${response.code()}")
@@ -53,6 +62,12 @@ object LsgRepository {
         }
     }
 
+    /**
+     * Consulta el endpoint `/whoami` para obtener los datos de identidad del jugador
+     * y dispara la consulta del identificador dinámico de sensor.
+     *
+     * @return `true` si se recuperó el perfil satisfactoriamente; `false` en caso de error.
+     */
     private suspend fun fetchUserInfo(): Boolean {
         val currentToken = token ?: return false
         return try {
@@ -76,16 +91,16 @@ object LsgRepository {
     }
 
     /**
-     * Recupera la lista de sensores del jugador y busca el ID de vinculación correcto
-     * para el sensor de "Higiene y Seguridad" (id_sensor_endpoint == 3).
-     * Si no existe vinculación activa, intenta auto-vincular el endpoint para este usuario.
+     * Recupera la lista de sensores del jugador y busca el ID de vinculación correspondiente
+     * al sensor de Higiene y Seguridad ([SENSOR_ENDPOINT_ID]).
+     *
+     * Si no existe vinculación previa, solicita la auto-vinculación mediante [autoLinkSensorEndpoint].
      */
     private suspend fun fetchDynamicSensorId() {
         val currentToken = token ?: return
         try {
             val response = RetrofitInstance.coreApi.getPlayerSensors("Bearer $currentToken", playerId)
             if (response.isSuccessful) {
-                // Buscamos el registro que pertenezca a nuestro SENSOR_ENDPOINT_ID
                 val sensorMapping = response.body()?.find { it.id_sensor_endpoint == SENSOR_ENDPOINT_ID }
                 
                 if (sensorMapping != null) {
@@ -104,16 +119,15 @@ object LsgRepository {
     }
 
     /**
-     * Intenta vincular activamente el sensor base (Paso 2) y su endpoint (Paso 4) al jugador actual.
+     * Vincula el sensor online base (ID 1) y activa el endpoint específico ([SENSOR_ENDPOINT_ID])
+     * para el jugador actual en el servidor LSG.
      */
     private suspend fun autoLinkSensorEndpoint() {
         val currentToken = token ?: return
         try {
-            // Paso 2: Vincular el sensor online base al jugador si no está vinculado aún
             val linkSensorReq = LinkSensorRequest(sensor_id = 1)
             RetrofitInstance.coreApi.linkSensor("Bearer $currentToken", playerId, linkSensorReq)
 
-            // Paso 4: Activar el endpoint específico (id_sensor_endpoint = 3)
             val request = LinkSensorEndpointRequest(
                 sensor_endpoint_id = SENSOR_ENDPOINT_ID,
                 activated = true,
@@ -136,7 +150,13 @@ object LsgRepository {
         }
     }
 
-    // ─── FUNCIÓN 2: Envía el puntaje del escaneo al webhook de LSG ──────────
+    /**
+     * Envía las métricas y la puntuación del escaneo al webhook de ingestión de sensores de LSG.
+     *
+     * @param score Puntuación calculada del escaneo (0 a 100).
+     * @param deviceSecurity Mapa con los detalles técnicos de la configuración del dispositivo.
+     * @return `true` si el servidor confirmó la recepción del evento; `false` en caso de error.
+     */
     suspend fun ingestSensorData(score: Int, deviceSecurity: Map<String, Any>): Boolean {
         if (!checkAndRefreshToken()) {
             Log.e("LSG", "Token inválido o expirado. No se puede realizar la ingesta.")
@@ -155,7 +175,7 @@ object LsgRepository {
             val request = SensorIngestRequest(
                 player_id                  = playerId,
                 sensor_endpoint_id         = SENSOR_ENDPOINT_ID,
-                players_sensor_endpoint_id = playersSensorEndpointId, // Dinámico
+                players_sensor_endpoint_id = playersSensorEndpointId,
                 raw_payload   = mapOf(
                     "device_security" to deviceSecurity
                 ),
@@ -171,7 +191,7 @@ object LsgRepository {
             )
 
             if (response.isSuccessful) {
-                Log.d("LSG", "Puntaje $score enviado a LSG ✓")
+                Log.d("LSG", "Puntaje $score enviado a LSG.")
                 true
             } else {
                 Log.e("LSG", "Ingest fallido: ${response.code()} ${response.errorBody()?.string()}")
@@ -183,7 +203,12 @@ object LsgRepository {
         }
     }
 
-    // ─── Envía el puntaje a la dimensión Mental como ajuste ─────
+    /**
+     * Acredita los puntos obtenidos en el escaneo al atributo Mental del jugador en LSG.
+     *
+     * @param score Cantidad de puntos a acreditar.
+     * @return `true` si la acreditación fue procesada exitosamente por LSG; `false` en caso contrario.
+     */
     suspend fun adjustUserPoints(score: Int): Boolean {
         if (!checkAndRefreshToken()) {
             Log.e("LSG", "Token inválido o expirado. No se puede realizar el ajuste de puntos.")
@@ -207,7 +232,7 @@ object LsgRepository {
             )
 
             if (response.isSuccessful) {
-                Log.d("LSG", "Ajuste de puntos exitoso para dimensión Mental ✓")
+                Log.d("LSG", "Ajuste de puntos exitoso para dimensión Mental.")
                 true
             } else {
                 Log.e("LSG", "Ajuste de puntos fallido: ${response.code()} ${response.errorBody()?.string()}")
@@ -220,9 +245,12 @@ object LsgRepository {
     }
 
     /**
-     * Comprueba el tiempo de vida restante del token. Si es inferior a 5 minutos (300 segundos),
-     * realiza el refresco automático llamando al endpoint /token/refresh de lsg-auth.
-     * Si el token ya expiró o falla el refresco (retorna 401), limpia el token y devuelve false.
+     * Comprueba el tiempo de vida restante del token de autenticación.
+     *
+     * Si resta menos de 5 minutos (300 segundos), invoca `/token/refresh`.
+     * Si el token está vencido o la renovación responde 401, limpia la sesión local.
+     *
+     * @return `true` si el token es válido o fue renovado con éxito; `false` si expiró o no se pudo renovar.
      */
     suspend fun checkAndRefreshToken(): Boolean {
         val currentToken = token ?: return false
@@ -237,7 +265,7 @@ object LsgRepository {
                     val refreshResponse = RetrofitInstance.authApi.refreshToken("Bearer $currentToken")
                     if (refreshResponse.isSuccessful) {
                         token = refreshResponse.body()?.access_token
-                        Log.d("LSG", "Token refrescado exitosamente ✓")
+                        Log.d("LSG", "Token refrescado exitosamente.")
                         true
                     } else {
                         Log.e("LSG", "Error al refrescar token: ${refreshResponse.code()}")

@@ -9,33 +9,46 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * ViewModel encargado de la lógica de presentación y sincronización con el repositorio LSG.
+ *
+ * Administra el flujo de autenticación, el envío concurrente de métricas de escaneo y ajuste de puntos,
+ * y la cuenta regresiva periódica para el período de enfriamiento (cooldown) de 24 horas entre escaneos.
+ */
 class LsgViewModel : ViewModel() {
 
     private val repo = LsgRepository
 
-    // Resultado del login: true=éxito, false=fallo, null=esperando
+    /** Estado del resultado del intento de login (`true` exitoso, `false` fallido, `null` en espera). */
     private val _loginResult = MutableLiveData<Boolean?>()
     val loginResult: LiveData<Boolean?> get() = _loginResult
 
-    // Resultado del envío del puntaje al sensor y ajuste de puntos
+    /** Estado del resultado de la transmisión del puntaje y ajuste de puntos a LSG. */
     private val _ingestResult = MutableLiveData<Boolean?>()
     val ingestResult: LiveData<Boolean?> get() = _ingestResult
 
-    // Información del usuario
+    /** Nombre del usuario autenticado actualmente. */
     private val _userName = MutableLiveData<String>(repo.getUserName())
     val userName: LiveData<String> get() = _userName
 
-    // Control de límite de escaneo de 24 horas
     private var timerJob: Job? = null
+
+    /** Indica si está permitido ejecutar un nuevo escaneo de seguridad. */
     private val _isScanAllowed = MutableLiveData<Boolean>(true)
     val isScanAllowed: LiveData<Boolean> get() = _isScanAllowed
 
+    /** Representación formateada en "HH:mm:ss" del tiempo restante del cooldown, o null si está libre. */
     private val _remainingTimeFormatted = MutableLiveData<String?>()
     val remainingTimeFormatted: LiveData<String?> get() = _remainingTimeFormatted
 
-    // ─── FUNCIÓN 1: Solo hace login y guarda el token ───────────────────────
+    /**
+     * Autentica al usuario contra el servicio LSG y actualiza el estado observable.
+     *
+     * @param username Nombre de usuario.
+     * @param password Contraseña de acceso.
+     */
     fun login(username: String, password: String) {
-        viewModelScope.launch { //habre un hilo/proceso secundario para que no se peque la app
+        viewModelScope.launch {
             val success = repo.login(username, password)
             if (success) {
                 _userName.postValue(repo.getUserName())
@@ -44,7 +57,13 @@ class LsgViewModel : ViewModel() {
         }
     }
 
-    // ─── Envía el puntaje a LSG (Sensor webhook + Puntos base Mental del usuario) ───
+    /**
+     * Despacha el resultado del escaneo de seguridad tanto al webhook del sensor como al ajuste
+     * de puntos de la dimensión Mental en la plataforma LSG.
+     *
+     * @param score Puntaje numérico obtenido en el escaneo (0 a 100).
+     * @param deviceSecurity Mapa con los detalles técnicos de configuración de seguridad del dispositivo.
+     */
     fun sendScanResult(score: Int, deviceSecurity: Map<String, Any>) {
         viewModelScope.launch {
             val sensorSuccess = repo.ingestSensorData(score, deviceSecurity)
@@ -53,7 +72,14 @@ class LsgViewModel : ViewModel() {
         }
     }
 
-    // Calcula el tiempo restante hasta completar las 24 horas de cooldown
+    /**
+     * Inicializa y gestiona el temporizador de cuenta regresiva basado en la marca temporal del último escaneo.
+     *
+     * Si no ha transcurrido el tiempo límite de 24 horas, suspende la habilitación del escaneo y actualiza
+     * cada segundo la cadena formateada de tiempo restante.
+     *
+     * @param timestamp Marca de tiempo en milisegundos (epoch) del último escaneo realizado.
+     */
     fun setLastScanTimestamp(timestamp: Long) {
         timerJob?.cancel()
         if (timestamp == 0L) {
