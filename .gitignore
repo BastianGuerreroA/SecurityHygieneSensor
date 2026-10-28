@@ -1,18 +1,49 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-/app/src/main/java/com/bastianguerrero/securitysensor/MD/
 
-/DOC
+# Android Studio
+*.iml
+.gradle/
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/shelf/
+.idea/runConfigurations/
+
+# Compilación y Salidas de Construcción (Build outputs)
+# Ignora carpetas build/ en la raíz y en cualquier submódulo (ej. app/build/)
+build/
+**/build/
+captures/
+bin/
+gen/
+out/
+.externalNativeBuild/
+.cxx/
+
+# Archivos de Entorno Local y Máquina Específica
+local.properties
+.kotlin/
+
+# Paquetes Compilados y Binarios (Generados localmente)
+*.ap_
+*.aab
+*.dex
+*.class
+*.keystore
+*.jks
+# Registros y Logs
+*.log
+# Archivos del Sistema Operativo
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Documentación
+DOC/
+/DOC/
+/app/src/main/java/com/bastianguerrero/securitysensor/MD/
