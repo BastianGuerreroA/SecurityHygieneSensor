@@ -9,8 +9,6 @@
   <img src="https://img.shields.io/badge/Kotlin-1.9%2B-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin">
   <img src="https://img.shields.io/badge/Plataforma-Android%208.0%2B%20(API%2026%2B)-3DDC84?logo=android&logoColor=white" alt="Plataforma Android">
   <img src="https://img.shields.io/badge/Arquitectura-MVVM%20%2B%20LiveData-blue" alt="Arquitectura MVVM">
-  <img src="https://img.shields.io/badge/Integraci%C3%B3n-LSG%20Framework-blue" alt="LSG Framework">
-  <img src="https://img.shields.io/badge/Licencia-Educativa%20%2F%20USACH-orange" alt="Licencia">
 </p>
 
 ---
